@@ -35,7 +35,7 @@ const allowedOrigins = [
     "http://localhost:3000",
     "http://192.168.29.21:3000",
     "https://global-india-corporation-r9ad.vercel.app",
-    "https://loquacious-nasturtium-28919c.netlify.app"
+    "https://global-frontfinal.vercel.app"
 ];
 
 app.use(cors({
