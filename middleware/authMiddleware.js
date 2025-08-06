@@ -1,28 +1,56 @@
-// middleware/authMiddleware.js
 import jwt from 'jsonwebtoken';
 import { userModel } from '../config/Schema.js';
 
-// Fixed authentication middleware
 export const authenticateUser = async (req, res, next) => {
   try {
     console.log('Auth middleware - Headers:', req.headers.authorization);
     console.log('Auth middleware - Cookies:', req.cookies);
+    console.log('Auth middleware - Environment:', process.env.NODE_ENV);
     
-    // Get token from header or cookie
-    const token = req.cookies.token || 
-                  (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+    // Multiple token sources for better compatibility
+    let token = req.cookies.token;
+    
+    // Check Authorization header if no cookie
+    if (!token && req.headers.authorization) {
+      const authHeader = req.headers.authorization;
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+    
+    // Check x-auth-token header as fallback
+    if (!token && req.headers['x-auth-token']) {
+      token = req.headers['x-auth-token'];
+    }
     
     console.log('Auth middleware - Token found:', !!token);
     
     if (!token) {
-      return res.status(401).json({ error: "Authentication required - no token" });
+      console.log('Auth middleware - No token found in any location');
+      return res.status(401).json({ 
+        error: "Authentication required - no token",
+        tokenSources: {
+          cookie: !!req.cookies.token,
+          authHeader: !!req.headers.authorization,
+          xAuthToken: !!req.headers['x-auth-token']
+        }
+      });
     }
     
-    // Verify token
-    const decoded = jwt.verify(token, process.env.TOKEN);
+    // Verify token with better error handling
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.TOKEN);
+    } catch (jwtError) {
+      console.error('Auth middleware - JWT verification failed:', jwtError.message);
+      return res.status(401).json({ 
+        error: "Invalid token: " + jwtError.message 
+      });
+    }
+    
     console.log('Auth middleware - Decoded token:', decoded);
     
-    // Find user by ID (the login route now includes both id and Email in token)
+    // Find user by ID
     const user = await userModel.findById(decoded.id).select('-password');
     
     if (!user) {
@@ -51,6 +79,8 @@ export const authenticateUser = async (req, res, next) => {
     next();
   } catch (error) {
     console.error("Auth middleware error:", error);
-    return res.status(401).json({ error: "Authentication failed: " + error.message });
+    return res.status(401).json({ 
+      error: "Authentication failed: " + error.message 
+    });
   }
 };

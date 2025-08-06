@@ -59,12 +59,13 @@ router.post("/sendotp", async (req, res) => {
 
 // Logout route
 router.post("/logout", (req, res) => {
-    res.clearCookie("token", {
+    const cookieOptions = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict"
-    });
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    };
     
+    res.clearCookie("token", cookieOptions);
     res.status(200).json({ message: "Logged out successfully" });
 });
 
@@ -152,6 +153,7 @@ router.post("/super-register", async (req, res) => {
 });
 
 // Updated login route
+// Update the login route cookie configuration
 router.post("/login", async (req, res) => {
     const Email = req.body.email;
     const passwd = req.body.password;
@@ -171,9 +173,15 @@ router.post("/login", async (req, res) => {
                 {expiresIn: '24h'}                
             );
 
-            res.cookie("token", token, {
-                maxAge: 1000 * 60 * 60 * 24 
-            });
+            // Enhanced cookie settings for production
+            const cookieOptions = {
+                maxAge: 1000 * 60 * 60 * 24, // 24 hours
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+            };
+
+            res.cookie("token", token, cookieOptions);
 
             res.status(200).json({
                 mssg: "Logged in successfully",
@@ -185,8 +193,8 @@ router.post("/login", async (req, res) => {
                 mobile: creds.mobile,
                 location: creds.location,
                 bio: creds.info,
-                profileImage: creds.profileImage, // Cloudinary URL doesn't need timestamp
-                token: token,
+                profileImage: creds.profileImage,
+                token: token, // Include token in response for client-side storage backup
                 isAuthenticated: true
             });
         } else {
