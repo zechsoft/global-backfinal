@@ -58,15 +58,112 @@ router.post("/sendotp", async (req, res) => {
 });
 
 // Logout route
-router.post("/logout", (req, res) => {
-    const cookieOptions = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
-    };
-    
-    res.clearCookie("token", cookieOptions);
-    res.status(200).json({ message: "Logged out successfully" });
+router.post("/logout", async (req, res) => {
+    try {
+        console.log('Logout endpoint called');
+        console.log('Request headers:', req.headers);
+        console.log('Request cookies:', req.cookies);
+        
+        // Get token from various sources
+        let token = null;
+        
+        // Try to get from Authorization header
+        if (req.headers.authorization) {
+            const authHeader = req.headers.authorization;
+            if (authHeader.startsWith('Bearer ')) {
+                token = authHeader.substring(7);
+                console.log('Token found in Authorization header');
+            }
+        }
+        
+        // Try to get from cookies
+        if (!token && req.cookies && req.cookies.token) {
+            token = req.cookies.token;
+            console.log('Token found in cookies');
+        }
+        
+        // If we have a token, we could optionally blacklist it or validate it
+        if (token) {
+            console.log('Processing logout for authenticated user');
+            // Here you could:
+            // 1. Add token to blacklist in database
+            // 2. Log the logout event
+            // 3. Invalidate any refresh tokens
+            
+            try {
+                // Verify token to get user info for logging
+                const decoded = jwt.verify(token, process.env.TOKEN);
+                console.log('Logout for user:', decoded.Email);
+                
+                // Optional: Log logout event in database
+                // await logLogoutEvent(decoded.id, decoded.Email);
+                
+            } catch (jwtError) {
+                console.log('Invalid token during logout, proceeding anyway');
+            }
+        }
+        
+        // Enhanced cookie clearing options
+        const cookieOptions = {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            domain: process.env.COOKIE_DOMAIN || undefined // Set this in your env if needed
+        };
+        
+        // Clear multiple possible cookie names
+        const cookiesToClear = ['token', 'authToken', 'refreshToken', 'sessionId'];
+        
+        cookiesToClear.forEach(cookieName => {
+            res.clearCookie(cookieName, cookieOptions);
+            
+            // Also clear without domain specified (fallback)
+            res.clearCookie(cookieName, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+            });
+            
+            // Clear with path variations
+            res.clearCookie(cookieName, {
+                ...cookieOptions,
+                path: '/'
+            });
+        });
+        
+        console.log('Cookies cleared successfully');
+        
+        // Set additional headers to prevent caching
+        res.set({
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
+        
+        res.status(200).json({ 
+            message: "Logged out successfully",
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('Logout error:', error);
+        
+        // Even if there's an error, we should still try to clear cookies
+        const cookieOptions = {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+        };
+        
+        res.clearCookie("token", cookieOptions);
+        res.clearCookie("authToken", cookieOptions);
+        res.clearCookie("refreshToken", cookieOptions);
+        
+        res.status(200).json({ 
+            message: "Logout completed with errors",
+            error: error.message 
+        });
+    }
 });
 
 router.post("/check-user", async (req, res) => {
