@@ -42,7 +42,7 @@ router.post("/sendotp", async (req, res) => {
         await OTPsave.save();
 
         try {
-            sendMail(OTP, "zechsoft.it@gmail.com");
+            sendMail(OTP, "glbalindiachn@gmail.com");
             res.status(200).json({ 
                 mssg: `OTP has been sent to admin`,
                 secret: hash 
@@ -757,7 +757,7 @@ router.post("/forgot-password", async (req, res) => {
                 Please use this OTP to approve the password reset request.
             `;
             
-            sendMail(emailContent, "zechsoft.it@gmail.com", "Password Reset Request");
+            sendMail(emailContent, "glbalindiachn@gmail.com", "Password Reset Request");
             
             res.status(200).json({ 
                 message: "Password reset request has been sent to admin for approval",
